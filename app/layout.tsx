@@ -13,8 +13,8 @@ const bodyFont = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "IUSS Insight | Chat istituzionale",
-  description: "Chat istituzionale IUSS Pavia basata su fonti ufficiali (PDF e pagine iusspavia.it)",
+  title: "IUSS Insight",
+  description: "Chat IUSS Pavia basata su fonti ufficiali (PDF e pagine iusspavia.it)",
 };
 
 export default function RootLayout({

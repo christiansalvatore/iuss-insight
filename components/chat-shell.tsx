@@ -3,16 +3,31 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRef } from "react";
 
+import type { ChatModelId } from "../lib/chat-models";
 import type { ChatResponse } from "../types";
 
 type ChatMessage = {
   role: "user" | "assistant";
   text: string;
   sources?: ChatResponse["sources"];
+  confidence?: ChatResponse["confidence"];
 };
 
 type UiLanguage = "it" | "en";
 type ThemeMode = "light" | "dark";
+const MODEL_OPTIONS: Array<{ id: ChatModelId; label: string }> = [
+  { id: "gemini-2.5-flash", label: "2.5 Flash (bilanciato)" },
+  { id: "gemini-2.5-flash-lite", label: "2.5 Flash-Lite (economico)" },
+  { id: "gemini-2.5-pro", label: "2.5 Pro (qualita alta)" },
+];
+const UI_ICONS = {
+  gear: "\u2699",
+  check: "\u2713",
+  moon: "\u263E",
+  sun: "\u2600",
+  flagIt: "\uD83C\uDDEE\uD83C\uDDF9",
+  flagEn: "\uD83C\uDDEC\uD83C\uDDE7",
+} as const;
 
 const I18N: Record<
   UiLanguage,
@@ -31,13 +46,17 @@ const I18N: Record<
     file: string;
     section: string;
     fragment: string;
+    relevance: string;
     disclaimer: string;
+    confidence: string;
+    confidenceValues: Record<ChatResponse["confidence"], string>;
+    model: string;
     examples: string[];
   }
 > = {
   it: {
     title: "IUSS Insight",
-    subtitle: "Chat istituzionale su fonti IUSS (PDF e pagine iusspavia.it in allowlist).",
+    subtitle: "Chat su fonti IUSS (regolamenti interni e pagine iusspavia.it)",
     placeholder: "Scrivi una domanda sui contenuti IUSS...",
     send: "Invia",
     sending: "Invio...",
@@ -50,8 +69,16 @@ const I18N: Record<
     file: "File",
     section: "Sezione",
     fragment: "Frammento",
+    relevance: "Pertinenza",
     disclaimer:
       "IUSS Insight puo commettere errori. Per conferme ufficiali e casi specifici, contatta sempre gli uffici IUSS competenti.",
+    confidence: "Affidabilita",
+    confidenceValues: {
+      high: "Alta",
+      medium: "Media",
+      low: "Bassa",
+    },
+    model: "Modello",
     examples: [
       "Quali sono i requisiti di accesso ai Corsi ordinari IUSS?",
       "Dove trovo informazioni sulla Scuola di dottorato?",
@@ -61,7 +88,7 @@ const I18N: Record<
   },
   en: {
     title: "IUSS Insight",
-    subtitle: "Institutional chat based on IUSS sources (PDFs and allowlisted iusspavia.it pages).",
+    subtitle: "Chat based on IUSS sources (PDFs and allowlisted iusspavia.it pages).",
     placeholder: "Ask a question about IUSS content...",
     send: "Send",
     sending: "Sending...",
@@ -74,8 +101,16 @@ const I18N: Record<
     file: "File",
     section: "Section",
     fragment: "Excerpt",
+    relevance: "Relevance",
     disclaimer:
       "IUSS Insight can make mistakes. For official confirmation and specific cases, always contact the relevant IUSS offices.",
+    confidence: "Reliability",
+    confidenceValues: {
+      high: "High",
+      medium: "Medium",
+      low: "Low",
+    },
+    model: "Model",
     examples: [
       "What are the admission requirements for IUSS Ordinary Courses?",
       "Where can I find information about the Doctoral School?",
@@ -112,6 +147,11 @@ function renderAnswerWithCitations(text: string, sources: ChatResponse["sources"
   });
 }
 
+function closeParentDetails(target: EventTarget | null) {
+  if (!(target instanceof Element)) return;
+  target.closest("details")?.removeAttribute("open");
+}
+
 export function ChatShell() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
@@ -119,6 +159,7 @@ export function ChatShell() {
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState<UiLanguage>("it");
   const [theme, setTheme] = useState<ThemeMode>("light");
+  const [chatModel, setChatModel] = useState<ChatModelId>("gemini-2.5-flash");
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -153,7 +194,7 @@ export function ChatShell() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: trimmed, language, history: historyPayload }),
+        body: JSON.stringify({ question: trimmed, language, history: historyPayload, chatModel }),
       });
 
       const payload = (await response.json()) as ChatResponse & { error?: string };
@@ -161,7 +202,10 @@ export function ChatShell() {
         throw new Error(payload.error || "Request failed.");
       }
 
-      setMessages((prev) => [...prev, { role: "assistant", text: payload.answer, sources: payload.sources }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: payload.answer, sources: payload.sources, confidence: payload.confidence },
+      ]);
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : "Unknown error";
       setError(message);
@@ -174,6 +218,7 @@ export function ChatShell() {
     setMessages([]);
     setError(null);
   };
+  const languageFlag = language === "it" ? UI_ICONS.flagIt : UI_ICONS.flagEn;
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-6 sm:px-6 lg:py-10">
@@ -184,27 +229,76 @@ export function ChatShell() {
               <h1 className="text-2xl font-semibold text-[var(--accent)] sm:text-3xl">{copy.title}</h1>
               <p className="mt-1 text-sm text-[var(--muted)] sm:text-base">{copy.subtitle}</p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="relative flex items-center gap-2">
+              <details className="menu-wrap">
+                <summary className="icon-btn" title={copy.model} aria-label={copy.model}>
+                  <span aria-hidden>{UI_ICONS.gear}</span>
+                </summary>
+                <div className="menu-panel min-w-56">
+                  <p className="menu-title">{copy.model}</p>
+                  <div className="menu-list">
+                    {MODEL_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={(event) => {
+                          setChatModel(option.id);
+                          closeParentDetails(event.target);
+                        }}
+                        className="menu-item"
+                        aria-pressed={chatModel === option.id}
+                      >
+                        <span>{option.label}</span>
+                        <span aria-hidden>{chatModel === option.id ? UI_ICONS.check : ""}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </details>
+
+              <details className="menu-wrap">
+                <summary className="icon-btn" title={language === "it" ? "Italiano" : "English"} aria-label="Lingua">
+                  <span aria-hidden>{languageFlag}</span>
+                </summary>
+                <div className="menu-panel min-w-36">
+                  <p className="menu-title">Lingua</p>
+                  <div className="menu-list">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        setLanguage("it");
+                        closeParentDetails(event.target);
+                      }}
+                      className="menu-item"
+                      aria-pressed={language === "it"}
+                    >
+                      <span>{UI_ICONS.flagIt} Italiano</span>
+                      <span aria-hidden>{language === "it" ? UI_ICONS.check : ""}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        setLanguage("en");
+                        closeParentDetails(event.target);
+                      }}
+                      className="menu-item"
+                      aria-pressed={language === "en"}
+                    >
+                      <span>{UI_ICONS.flagEn} English</span>
+                      <span aria-hidden>{language === "en" ? UI_ICONS.check : ""}</span>
+                    </button>
+                  </div>
+                </div>
+              </details>
+
               <button
                 type="button"
-                onClick={() => setLanguage("it")}
-                className="toggle-btn"
-                aria-pressed={language === "it"}
-                title="Italiano"
+                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+                className="icon-btn"
+                title={theme === "light" ? "Attiva tema scuro" : "Attiva tema chiaro"}
+                aria-label={theme === "light" ? "Attiva tema scuro" : "Attiva tema chiaro"}
               >
-                🇮🇹 IT
-              </button>
-              <button
-                type="button"
-                onClick={() => setLanguage("en")}
-                className="toggle-btn"
-                aria-pressed={language === "en"}
-                title="English"
-              >
-                🇬🇧 EN
-              </button>
-              <button type="button" onClick={() => setTheme(theme === "light" ? "dark" : "light")} className="toggle-btn">
-                {theme === "light" ? "Dark" : "Light"}
+                <span aria-hidden>{theme === "light" ? UI_ICONS.moon : UI_ICONS.sun}</span>
               </button>
             </div>
           </div>
@@ -225,6 +319,14 @@ export function ChatShell() {
             <div className="space-y-4">
               {messages.map((message, index) => (
                 <article key={`${message.role}-${index}`} className="space-y-2">
+                  {message.role === "assistant" && message.confidence ? (
+                    <p className="text-xs text-[var(--muted)]">
+                      {copy.confidence}:{" "}
+                      <span className="rounded-md border border-[var(--line)] bg-[var(--surface-soft)] px-2 py-0.5">
+                        {copy.confidenceValues[message.confidence]}
+                      </span>
+                    </p>
+                  ) : null}
                   <div className={`bubble ${message.role === "user" ? "bubble-user" : "bubble-assistant"}`}>
                     {message.role === "assistant" ? renderAnswerWithCitations(message.text, message.sources) : message.text}
                   </div>
@@ -255,6 +357,9 @@ export function ChatShell() {
                                 ) : (
                                   `${copy.file}: ${source.fileName ?? "n/a"}`
                                 )}
+                              </p>
+                              <p>
+                                {copy.relevance}: {Math.max(1, Math.round(source.relevance * 100))}%
                               </p>
                               {source.section ? <p>{copy.section}: {source.section}</p> : null}
                               {source.fragment ? <p>{copy.fragment}: {source.fragment}</p> : null}
@@ -297,3 +402,5 @@ export function ChatShell() {
     </main>
   );
 }
+
+

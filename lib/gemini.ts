@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+import type { ChatModelId } from "./chat-models";
 import { getGeminiApiKey, getGeminiChatModel, getGeminiEmbedModel } from "./env";
 import { buildAnswerPrompt, SYSTEM_PROMPT } from "./prompts";
 
@@ -29,9 +30,10 @@ export async function generateGroundedAnswer(input: {
   contextBlocks: Array<{ id: string; sourceLabel: string; text: string }>;
   language?: "it" | "en";
   conversationHistory?: Array<{ role: "user" | "assistant"; text: string }>;
+  chatModel?: ChatModelId;
 }): Promise<string> {
   const model = getClient().getGenerativeModel({
-    model: getGeminiChatModel(),
+    model: input.chatModel ?? getGeminiChatModel(),
     systemInstruction: SYSTEM_PROMPT,
   });
 

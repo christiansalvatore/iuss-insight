@@ -1,11 +1,14 @@
 export type SourceType = "PDF" | "WEB";
+export type SourceLanguage = "it" | "en" | "unknown";
 
 export type SourceMeta = {
   sourceId: string;
   title: string;
   type: SourceType;
+  language: SourceLanguage;
   url?: string;
   fileName?: string;
+  filePath?: string;
   section?: string;
 };
 
@@ -29,10 +32,13 @@ export type ScoredChunk = IndexedChunk & {
 
 export type ChatSource = {
   citationId: string;
+  relevance: number;
   title: string;
   type: SourceType;
+  language: SourceLanguage;
   url?: string;
   fileName?: string;
+  filePath?: string;
   section?: string;
   fragment?: string;
   href?: string;
@@ -41,4 +47,5 @@ export type ChatSource = {
 export type ChatResponse = {
   answer: string;
   sources: ChatSource[];
+  confidence: "high" | "medium" | "low";
 };

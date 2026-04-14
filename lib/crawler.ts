@@ -3,12 +3,14 @@ import * as cheerio from "cheerio";
 import type { CrawlConfig } from "../config/ingest-config";
 import { hashText } from "./hash";
 import { cleanText } from "./text-utils";
+import type { SourceLanguage } from "../types";
 
 type CrawledDocument = {
   sourceId: string;
   title: string;
   url: string;
   section?: string;
+  language: SourceLanguage;
   text: string;
 };
 
@@ -57,6 +59,17 @@ function isAllowedPath(pathname: string, config: CrawlConfig): boolean {
 
 function getSeedUrls(config: CrawlConfig): string[] {
   return config.allowPathPrefixes.map((prefix) => new URL(prefix, config.domain).toString());
+}
+
+function inferLanguageFromUrl(url: string): SourceLanguage {
+  try {
+    const pathname = new URL(url).pathname.toLowerCase();
+    if (pathname === "/en" || pathname.startsWith("/en/")) return "en";
+    if (pathname === "/it" || pathname.startsWith("/it/")) return "it";
+    return "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 function extractMainText(html: string): { text: string; title: string; section?: string } {
@@ -119,6 +132,7 @@ export async function crawlIussPages(config: CrawlConfig): Promise<CrawledDocume
           title,
           url: normalizedUrl,
           section,
+          language: inferLanguageFromUrl(normalizedUrl),
           text,
         });
       }

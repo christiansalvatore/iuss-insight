@@ -77,7 +77,9 @@ async function buildChunks(): Promise<Array<{ source: SourceMeta; text: string; 
       sourceId: doc.sourceId,
       title: doc.title,
       type: "PDF",
+      language: doc.language,
       fileName: doc.fileName,
+      filePath: doc.filePath,
     };
 
     const chunks = chunkText(doc.text, ingestConfig.chunkSize, ingestConfig.chunkOverlap);
@@ -95,6 +97,7 @@ async function buildChunks(): Promise<Array<{ source: SourceMeta; text: string; 
       sourceId: doc.sourceId,
       title: doc.title,
       type: "WEB",
+      language: doc.language,
       url: doc.url,
       section: doc.section,
     };

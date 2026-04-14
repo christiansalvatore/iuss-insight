@@ -2,7 +2,7 @@ import { ingestConfig } from "../config/ingest-config";
 import { embedText } from "./gemini";
 import { loadIndex } from "./index-store";
 import { cosineSimilarity } from "./math";
-import type { ScoredChunk } from "../types";
+import type { ScoredChunk, SourceLanguage } from "../types";
 
 type RankedChunk = ScoredChunk & {
   adjustedScore: number;
@@ -16,6 +16,13 @@ function sourceTrustWeight(chunk: { source: { type: "PDF" | "WEB"; title: string
     /regolament|regulation|statut|code of ethics|guideline|disciplinar|procedure|normativa/.test(label);
 
   return isRegulatoryPdf ? 1.18 : 1.1;
+}
+
+function languageWeight(sourceLanguage: SourceLanguage, preferredLanguage: SourceLanguage): number {
+  if (preferredLanguage === "unknown") return 1;
+  if (sourceLanguage === preferredLanguage) return 1.14;
+  if (sourceLanguage === "unknown") return 1;
+  return 0.94;
 }
 
 function dedupeRanked(scored: RankedChunk[]): RankedChunk[] {
@@ -68,7 +75,11 @@ function selectBalanced(results: RankedChunk[], topK: number): ScoredChunk[] {
     }));
 }
 
-export async function retrieveRelevantChunks(question: string, topK = ingestConfig.topK): Promise<ScoredChunk[]> {
+export async function retrieveRelevantChunks(
+  question: string,
+  topK = ingestConfig.topK,
+  preferredLanguage: SourceLanguage = "it",
+): Promise<ScoredChunk[]> {
   const index = await loadIndex();
   if (!index.chunks.length) return [];
 
@@ -80,7 +91,8 @@ export async function retrieveRelevantChunks(question: string, topK = ingestConf
       return {
         ...chunk,
         score: semanticScore,
-        adjustedScore: semanticScore * sourceTrustWeight(chunk),
+        adjustedScore:
+          semanticScore * sourceTrustWeight(chunk) * languageWeight(chunk.source.language ?? "unknown", preferredLanguage),
       };
     })
     .filter((chunk) => chunk.score >= ingestConfig.minSimilarity)

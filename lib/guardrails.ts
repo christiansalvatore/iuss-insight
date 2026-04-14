@@ -17,7 +17,12 @@ export const MAX_QUESTION_LENGTH = 1200;
 
 export function sanitizeQuestion(input: string): string {
   return input
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 $2")
+    .replace(/https?:\/\/\S+/gi, " ")
     .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/[<>{}[\]|^`~]/g, " ")
+    .replace(/[!?.,;:]{4,}/g, "...")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -40,4 +45,3 @@ export function sanitizeModelAnswer(answer: string): string {
     .replace(/\s+\n/g, "\n")
     .trim();
 }
-

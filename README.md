@@ -1,7 +1,7 @@
 # IUSS Insight
 
 Chat minimale, moderna e deployabile su Vercel, limitata ai contenuti istituzionali/accademici IUSS Pavia provenienti da:
-- PDF locali in `data/pdfs`
+- PDF locali in `data/pdfs/it` e `data/pdfs/en`
 - pagine pubbliche `iusspavia.it` filtrate da allowlist
 
 ## Architettura scelta (pragmatica)
@@ -44,7 +44,10 @@ Compila i valori:
 
 ## Inserire i PDF
 Metti i PDF in:
-- `data/pdfs`
+- `data/pdfs/it` per i documenti in italiano
+- `data/pdfs/en` per i documenti in inglese
+
+Nota: il loader legge in modo ricorsivo anche eventuali sottocartelle aggiuntive sotto `data/pdfs`.
 
 ## Configurare crawling sito
 Modifica `config/crawl-allowlist.json`:
@@ -61,6 +64,10 @@ Crawler prudente:
 ```bash
 npm run ingest
 ```
+
+Priorita lingua nel retrieval:
+- preferenza alla lingua della chat (`it` di default)
+- fallback automatico ai documenti inglesi se utili
 
 Output:
 - `data/index/iuss-index.json`

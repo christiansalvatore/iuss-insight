@@ -64,6 +64,78 @@ h3 {
   font-weight: 700;
 }
 
+.icon-btn {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 0.75rem;
+  width: 2.35rem;
+  height: 2.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.menu-wrap {
+  position: relative;
+}
+
+.menu-wrap summary {
+  list-style: none;
+}
+
+.menu-wrap summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu-panel {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  right: 0;
+  z-index: 40;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 0.9rem;
+  padding: 0.65rem;
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.12);
+}
+
+.menu-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.menu-item {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 0.65rem;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.78rem;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.menu-item[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+
 .chip-btn {
   border: 1px solid var(--line);
   background: var(--accent-soft);

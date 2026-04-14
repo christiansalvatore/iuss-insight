@@ -33,6 +33,37 @@ const EXCLUDED_EXTENSIONS = [
   ".ppt",
   ".pptx",
 ];
+const STOPWORDS = new Set([
+  "il",
+  "lo",
+  "la",
+  "i",
+  "gli",
+  "le",
+  "un",
+  "una",
+  "di",
+  "a",
+  "da",
+  "in",
+  "con",
+  "su",
+  "per",
+  "del",
+  "della",
+  "delle",
+  "dello",
+  "dei",
+  "dove",
+  "trovo",
+  "link",
+  "pagina",
+  "sito",
+  "where",
+  "find",
+  "page",
+  "website",
+]);
 
 function canonicalizeUrl(url: string): string {
   const parsed = new URL(url);
@@ -59,7 +90,7 @@ function tokenize(query: string): string[] {
         .toLowerCase()
         .split(/[^a-z0-9à-öø-ÿ]+/i)
         .map((token) => token.trim())
-        .filter((token) => token.length >= 3),
+        .filter((token) => token.length >= 3 && !STOPWORDS.has(token)),
     ),
   );
 }
@@ -160,7 +191,7 @@ export async function searchIussDomainWeb(question: string, maxResults = 3): Pro
 
   const candidateUrls = urls
     .map((url) => ({ url, score: scoreUrl(url, tokens) }))
-    .filter((item) => item.score > 0)
+    .filter((item) => item.score >= 2)
     .sort((a, b) => b.score - a.score)
     .slice(0, 18)
     .map((item) => item.url);
@@ -174,7 +205,7 @@ export async function searchIussDomainWeb(question: string, maxResults = 3): Pro
     if (text.length < 250) continue;
 
     const textScore = scoreText(text, tokens);
-    if (textScore <= 0) continue;
+    if (textScore < 3) continue;
 
     results.push({
       title,
