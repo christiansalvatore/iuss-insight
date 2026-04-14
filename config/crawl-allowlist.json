@@ -1,0 +1,28 @@
+{
+  "domain": "https://www.iusspavia.it",
+  "allowPathPrefixes": [
+    "/it/normativa",
+    "/it/temi-e-percorsi",
+    "/it/formazione",
+    "/it/orientamento",
+    "/it/futuri-studenti",
+    "/it/allievi",
+    "/it/corsi-ordinari",
+    "/it/lauree-magistrali",
+    "/it/scuola-di-dottorato",
+    "/it/segreterie",
+    "/it/regolamenti",
+    "/it/procedure"
+  ],
+  "excludePathPatterns": [
+    "/media/",
+    "/search",
+    "/rss",
+    "/tag/",
+    "/taxonomy/",
+    "/user/"
+  ],
+  "maxPages": 90,
+  "maxDepth": 2,
+  "minTextLength": 350
+}
