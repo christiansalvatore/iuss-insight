@@ -40,7 +40,20 @@ cp .env.example .env.local
 Compila i valori:
 - `GEMINI_API_KEY` oppure `GOOGLE_GENERATIVE_AI_API_KEY` (almeno una obbligatoria)
 - `APP_URL` (es. `http://localhost:3000` in locale)
+- `NEXTAUTH_URL` (es. `http://localhost:3000` in locale, URL Vercel in produzione)
+- `NEXTAUTH_SECRET` (stringa casuale lunga)
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
 - opzionali: `GEMINI_CHAT_MODEL`, `GEMINI_EMBED_MODEL`
+
+### Login Google (solo Gmail)
+L'app usa autenticazione Google con `next-auth` e accetta solo account `@gmail.com`.
+
+Configura OAuth su Google Cloud:
+1. Crea credenziali OAuth 2.0 (Web application).
+2. Authorized redirect URIs in locale: `http://localhost:3000/api/auth/callback/google`
+3. Authorized redirect URIs in produzione: `https://<tuo-dominio>/api/auth/callback/google`
+4. Copia `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` nelle env.
 
 ## Inserire i PDF
 Metti i PDF in:
@@ -105,6 +118,10 @@ Messaggio di rifiuto fuori scope:
 - `GEMINI_API_KEY`
 - `GOOGLE_GENERATIVE_AI_API_KEY`
 - `APP_URL`
+- `NEXTAUTH_URL`
+- `NEXTAUTH_SECRET`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
 - `GEMINI_CHAT_MODEL` (opzionale)
 - `GEMINI_EMBED_MODEL` (opzionale)
 
@@ -143,7 +160,7 @@ Se una chiave finisce per errore nel repository:
 - `data/index/` indice JSON generato
 
 ## Note operative
-- Nessuna autenticazione
+- Login obbligatorio con Google (`@gmail.com`)
 - Nessuna area admin
 - Nessun CMS
 - Nessuna memoria utente

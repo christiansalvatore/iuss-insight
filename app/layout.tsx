@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Lora, Source_Sans_3 } from "next/font/google";
+import { Providers } from "./providers";
 import "./globals.css";
 
 const headingFont = Lora({
@@ -24,7 +25,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="it" className={`${headingFont.variable} ${bodyFont.variable}`}>
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

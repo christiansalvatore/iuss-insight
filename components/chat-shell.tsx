@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRef } from "react";
+import { signIn, signOut, useSession } from "next-auth/react";
 
 import type { ChatModelId } from "../lib/chat-models";
 import type { ChatResponse } from "../types";
@@ -51,6 +52,10 @@ const I18N: Record<
     confidence: string;
     confidenceValues: Record<ChatResponse["confidence"], string>;
     model: string;
+    login: string;
+    logout: string;
+    authRequired: string;
+    signingIn: string;
     examples: string[];
   }
 > = {
@@ -79,6 +84,10 @@ const I18N: Record<
       low: "Bassa",
     },
     model: "Modello",
+    login: "Login",
+    logout: "Logout",
+    authRequired: "Per inviare una domanda devi accedere con un account Gmail.",
+    signingIn: "Accesso...",
     examples: [
       "Quali sono i requisiti di accesso ai Corsi ordinari IUSS?",
       "Dove trovo informazioni sulla Scuola di dottorato?",
@@ -111,6 +120,10 @@ const I18N: Record<
       low: "Low",
     },
     model: "Model",
+    login: "Login",
+    logout: "Logout",
+    authRequired: "You need to sign in with a Gmail account before sending a question.",
+    signingIn: "Signing in...",
     examples: [
       "What are the admission requirements for IUSS Ordinary Courses?",
       "Where can I find information about the Doctoral School?",
@@ -153,6 +166,7 @@ function closeParentDetails(target: EventTarget | null) {
 }
 
 export function ChatShell() {
+  const { data: session, status } = useSession();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
@@ -173,12 +187,28 @@ export function ChatShell() {
   }, [messages, loading]);
 
   const copy = I18N[language];
+  const isAuthenticated = status === "authenticated";
   const canSend = useMemo(() => question.trim().length > 0 && !loading, [question, loading]);
+
+  const handleLogin = async () => {
+    setError(null);
+    await signIn("google", { callbackUrl: "/" });
+  };
+
+  const handleLogout = async () => {
+    setError(null);
+    await signOut({ callbackUrl: "/" });
+  };
 
   const submit = async (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
     const trimmed = question.trim();
     if (!trimmed || loading) return;
+    if (!isAuthenticated) {
+      setError(copy.authRequired);
+      await signIn("google", { callbackUrl: "/" });
+      return;
+    }
 
     setError(null);
     setLoading(true);
@@ -300,6 +330,20 @@ export function ChatShell() {
               >
                 <span aria-hidden>{theme === "light" ? UI_ICONS.moon : UI_ICONS.sun}</span>
               </button>
+              {isAuthenticated ? (
+                <button type="button" onClick={handleLogout} className="auth-btn" title={session?.user?.email ?? ""}>
+                  {copy.logout}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleLogin}
+                  disabled={status === "loading"}
+                  className="auth-btn"
+                >
+                  {status === "loading" ? copy.signingIn : copy.login}
+                </button>
+              )}
             </div>
           </div>
 

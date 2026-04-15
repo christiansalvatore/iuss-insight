@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
 
+import { getAuthOptions } from "../../../lib/auth";
 import { generateGroundedAnswer } from "../../../lib/gemini";
 import {
   detectPromptInjection,
@@ -315,6 +317,7 @@ function getMessages(language: UiLanguage) {
         "For security reasons, I can only answer informational questions about IUSS content and cannot follow instructions that alter chat rules.",
       insufficient:
         "I do not have enough information in the available sources to answer reliably.",
+      authRequired: "Please sign in with a Gmail account to use this chat.",
     };
   }
 
@@ -324,11 +327,18 @@ function getMessages(language: UiLanguage) {
     outOfScope: OUT_OF_SCOPE_MESSAGE,
     injection: INJECTION_REFUSAL_MESSAGE,
     insufficient: INSUFFICIENT_INFO_MESSAGE,
+    authRequired: "Accedi con un account Gmail per usare questa chat.",
   };
 }
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(getAuthOptions());
+    const sessionEmail = session?.user?.email?.toLowerCase();
+    if (!session || !sessionEmail || !sessionEmail.endsWith("@gmail.com")) {
+      return NextResponse.json({ error: getMessages("it").authRequired }, { status: 401 });
+    }
+
     const body = await request.json();
     const rawQuestion = typeof body?.question === "string" ? body.question : "";
     const language: UiLanguage = body?.language === "en" ? "en" : "it";
