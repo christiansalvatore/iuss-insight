@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+import { isAllowedInstitutionEmail } from "../../../lib/auth-policy";
 import { getWeeklyQuotaStatus } from "../../../lib/weekly-quota";
 
 export const runtime = "nodejs";
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     });
     const sessionEmail = typeof token?.email === "string" ? token.email.toLowerCase() : "";
-    if (!sessionEmail || !sessionEmail.endsWith("@gmail.com")) {
+    if (!isAllowedInstitutionEmail(sessionEmail)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -23,4 +24,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
-

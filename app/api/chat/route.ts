@@ -12,6 +12,7 @@ import { isAllowedChatModel, type ChatModelId } from "../../../lib/chat-models";
 import { searchIussDomainWeb, shouldUseLiveWebSearch } from "../../../lib/live-web-search";
 import { retrieveRelevantChunks } from "../../../lib/retrieval";
 import { getWeeklyQuestionLimit, registerQuestionUsage } from "../../../lib/weekly-quota";
+import { getAllowedEmailDomain, isAllowedInstitutionEmail } from "../../../lib/auth-policy";
 import {
   INJECTION_REFUSAL_MESSAGE,
   INSUFFICIENT_INFO_MESSAGE,
@@ -317,7 +318,7 @@ function getMessages(language: UiLanguage) {
         "For security reasons, I can only answer informational questions about IUSS content and cannot follow instructions that alter chat rules.",
       insufficient:
         "I do not have enough information in the available sources to answer reliably.",
-      authRequired: "Please sign in with a Gmail account to use this chat.",
+      authRequired: `Please sign in with an @${getAllowedEmailDomain()} account to use this chat.`,
       quotaExceeded: "Weekly question limit reached. Please try again next week.",
     };
   }
@@ -328,7 +329,7 @@ function getMessages(language: UiLanguage) {
     outOfScope: OUT_OF_SCOPE_MESSAGE,
     injection: INJECTION_REFUSAL_MESSAGE,
     insufficient: INSUFFICIENT_INFO_MESSAGE,
-    authRequired: "Accedi con un account Gmail per usare questa chat.",
+    authRequired: `Accedi con un account @${getAllowedEmailDomain()} per usare questa chat.`,
     quotaExceeded: "Hai raggiunto il limite settimanale di domande. Riprova la prossima settimana.",
   };
 }
@@ -340,7 +341,7 @@ export async function POST(request: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET,
     });
     const sessionEmail = typeof token?.email === "string" ? token.email.toLowerCase() : "";
-    if (!sessionEmail || !sessionEmail.endsWith("@gmail.com")) {
+    if (!isAllowedInstitutionEmail(sessionEmail)) {
       return NextResponse.json({ error: getMessages("it").authRequired }, { status: 401 });
     }
 

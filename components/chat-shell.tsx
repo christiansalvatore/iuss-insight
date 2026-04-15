@@ -68,6 +68,7 @@ const I18N: Record<
     creditsUnlimited: string;
     creditsRemaining: string;
     authRequired: string;
+    accessDenied: string;
     signingIn: string;
     examples: string[];
   }
@@ -103,7 +104,8 @@ const I18N: Record<
     credits: "Crediti settimanali",
     creditsUnlimited: "Illimitati",
     creditsRemaining: "rimanenti",
-    authRequired: "Per inviare una domanda devi accedere con un account Gmail.",
+    authRequired: "Per inviare una domanda devi accedere con un account @iusspavia.it.",
+    accessDenied: "Accesso negato: puoi accedere solo con account @iusspavia.it.",
     signingIn: "Accesso...",
     examples: [
       "Quali sono i requisiti di accesso ai Corsi ordinari IUSS?",
@@ -143,7 +145,8 @@ const I18N: Record<
     credits: "Weekly credits",
     creditsUnlimited: "Unlimited",
     creditsRemaining: "remaining",
-    authRequired: "You need to sign in with a Gmail account before sending a question.",
+    authRequired: "You need to sign in with an @iusspavia.it account before sending a question.",
+    accessDenied: "Access denied: only @iusspavia.it accounts are allowed.",
     signingIn: "Signing in...",
     examples: [
       "What are the admission requirements for IUSS Ordinary Courses?",
@@ -219,6 +222,7 @@ export function ChatShell() {
   const [chatModel, setChatModel] = useState<ChatModelId>("gemini-2.5-flash");
   const [quota, setQuota] = useState<QuotaStatus | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const copy = I18N[language];
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -237,6 +241,15 @@ export function ChatShell() {
     setQuestion((current) => (current.trim().length > 0 ? current : pending));
     window.localStorage.removeItem(PENDING_QUESTION_KEY);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get("error");
+    if (authError === "AccessDenied") {
+      setError(copy.accessDenied);
+    }
+  }, [copy.accessDenied]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -262,7 +275,6 @@ export function ChatShell() {
     };
   }, [isAuthenticated]);
 
-  const copy = I18N[language];
   const canSend = useMemo(() => question.trim().length > 0 && !loading, [question, loading]);
   const profileName = userDisplayName(session?.user?.name, session?.user?.email);
   const quotaPercent = quotaUsagePercent(quota);

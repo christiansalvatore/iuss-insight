@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import { isAllowedInstitutionEmail } from "./auth-policy";
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -24,8 +25,7 @@ export function getAuthOptions(): NextAuthOptions {
       async signIn({ account, profile }) {
         if (account?.provider !== "google") return false;
         const email = profile?.email?.toLowerCase();
-        if (!email) return false;
-        return email.endsWith("@gmail.com");
+        return isAllowedInstitutionEmail(email);
       },
     },
     pages: {
