@@ -5,6 +5,14 @@ type QuotaCheckResult = {
   weekKey: string;
 };
 
+export type WeeklyQuotaStatus = {
+  enabled: boolean;
+  limit: number;
+  used: number;
+  remaining: number;
+  weekKey: string;
+};
+
 function readOptionalNumber(name: string): number {
   const raw = process.env[name]?.trim();
   if (!raw) return 0;
@@ -113,3 +121,29 @@ export async function registerQuestionUsage(email: string, limit: number): Promi
   };
 }
 
+export async function getWeeklyQuotaStatus(email: string): Promise<WeeklyQuotaStatus> {
+  const limit = getWeeklyQuestionLimit();
+  const weekKey = getIsoWeekKey();
+  if (limit <= 0) {
+    return {
+      enabled: false,
+      limit: 0,
+      used: 0,
+      remaining: 0,
+      weekKey,
+    };
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const redisKey = `quota:weekly:${weekKey}:${normalizedEmail}`;
+  const value = await redisCommand(["GET", redisKey]);
+  const used = Math.max(0, Number(value ?? 0) || 0);
+
+  return {
+    enabled: true,
+    limit,
+    used,
+    remaining: Math.max(0, limit - used),
+    weekKey,
+  };
+}

@@ -13,6 +13,13 @@ type ChatMessage = {
   sources?: ChatResponse["sources"];
   confidence?: ChatResponse["confidence"];
 };
+type QuotaStatus = {
+  enabled: boolean;
+  limit: number;
+  used: number;
+  remaining: number;
+  weekKey: string;
+};
 
 type UiLanguage = "it" | "en";
 type ThemeMode = "light" | "dark";
@@ -28,6 +35,7 @@ const UI_ICONS = {
   sun: "\u2600",
   flagIt: "\uD83C\uDDEE\uD83C\uDDF9",
   flagEn: "\uD83C\uDDEC\uD83C\uDDE7",
+  send: "\u27A4",
 } as const;
 const PENDING_QUESTION_KEY = "iuss-insight:pending-question";
 
@@ -55,6 +63,10 @@ const I18N: Record<
     model: string;
     login: string;
     logout: string;
+    hello: string;
+    credits: string;
+    creditsUnlimited: string;
+    creditsRemaining: string;
     authRequired: string;
     signingIn: string;
     examples: string[];
@@ -87,6 +99,10 @@ const I18N: Record<
     model: "Modello",
     login: "Login",
     logout: "Logout",
+    hello: "Ciao",
+    credits: "Crediti settimanali",
+    creditsUnlimited: "Illimitati",
+    creditsRemaining: "rimanenti",
     authRequired: "Per inviare una domanda devi accedere con un account Gmail.",
     signingIn: "Accesso...",
     examples: [
@@ -123,6 +139,10 @@ const I18N: Record<
     model: "Model",
     login: "Login",
     logout: "Logout",
+    hello: "Hi",
+    credits: "Weekly credits",
+    creditsUnlimited: "Unlimited",
+    creditsRemaining: "remaining",
     authRequired: "You need to sign in with a Gmail account before sending a question.",
     signingIn: "Signing in...",
     examples: [
@@ -166,8 +186,30 @@ function closeParentDetails(target: EventTarget | null) {
   target.closest("details")?.removeAttribute("open");
 }
 
+function userDisplayName(name?: string | null, email?: string | null): string {
+  const cleanName = name?.trim();
+  if (cleanName) {
+    const [first] = cleanName.split(/\s+/);
+    return first;
+  }
+  const local = email?.split("@")[0]?.trim();
+  return local || "utente";
+}
+
+function quotaUsagePercent(quota: QuotaStatus | null): number {
+  if (!quota || !quota.enabled || quota.limit <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((quota.used / quota.limit) * 100)));
+}
+
+function quotaBarClass(percent: number): string {
+  if (percent >= 90) return "quota-fill quota-fill-high";
+  if (percent >= 70) return "quota-fill quota-fill-medium";
+  return "quota-fill quota-fill-low";
+}
+
 export function ChatShell() {
   const { data: session, status } = useSession();
+  const isAuthenticated = status === "authenticated";
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
@@ -175,6 +217,7 @@ export function ChatShell() {
   const [language, setLanguage] = useState<UiLanguage>("it");
   const [theme, setTheme] = useState<ThemeMode>("light");
   const [chatModel, setChatModel] = useState<ChatModelId>("gemini-2.5-flash");
+  const [quota, setQuota] = useState<QuotaStatus | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -195,9 +238,34 @@ export function ChatShell() {
     window.localStorage.removeItem(PENDING_QUESTION_KEY);
   }, []);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setQuota(null);
+      return;
+    }
+
+    let cancelled = false;
+    const loadQuota = async () => {
+      try {
+        const response = await fetch("/api/quota", { cache: "no-store" });
+        if (!response.ok) return;
+        const payload = (await response.json()) as QuotaStatus;
+        if (!cancelled) setQuota(payload);
+      } catch {
+        // non-blocking
+      }
+    };
+    void loadQuota();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
+
   const copy = I18N[language];
-  const isAuthenticated = status === "authenticated";
   const canSend = useMemo(() => question.trim().length > 0 && !loading, [question, loading]);
+  const profileName = userDisplayName(session?.user?.name, session?.user?.email);
+  const quotaPercent = quotaUsagePercent(quota);
 
   const handleLogin = async () => {
     setError(null);
@@ -240,7 +308,21 @@ export function ChatShell() {
         body: JSON.stringify({ question: trimmed, language, history: historyPayload, chatModel }),
       });
 
-      const payload = (await response.json()) as ChatResponse & { error?: string };
+      const payload = (await response.json()) as ChatResponse & {
+        error?: string;
+        limit?: number;
+        used?: number;
+        week?: string;
+      };
+      if (response.status === 429 && typeof payload.limit === "number" && typeof payload.used === "number") {
+        setQuota({
+          enabled: true,
+          limit: payload.limit,
+          used: payload.used,
+          remaining: Math.max(0, payload.limit - payload.used),
+          weekKey: typeof payload.week === "string" ? payload.week : "",
+        });
+      }
       if (!response.ok) {
         throw new Error(payload.error || "Request failed.");
       }
@@ -249,6 +331,13 @@ export function ChatShell() {
         ...prev,
         { role: "assistant", text: payload.answer, sources: payload.sources, confidence: payload.confidence },
       ]);
+      if (quota?.enabled) {
+        setQuota((current) =>
+          current
+            ? { ...current, used: current.used + 1, remaining: Math.max(0, current.limit - (current.used + 1)) }
+            : current,
+        );
+      }
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : "Unknown error";
       setError(message);
@@ -344,9 +433,19 @@ export function ChatShell() {
                 <span aria-hidden>{theme === "light" ? UI_ICONS.moon : UI_ICONS.sun}</span>
               </button>
               {isAuthenticated ? (
-                <button type="button" onClick={handleLogout} className="auth-btn" title={session?.user?.email ?? ""}>
-                  {copy.logout}
-                </button>
+                <details className="menu-wrap">
+                  <summary className="auth-btn" title={session?.user?.email ?? ""}>
+                    {copy.hello}, {profileName}
+                  </summary>
+                  <div className="menu-panel min-w-44">
+                    <p className="menu-title">{session?.user?.email}</p>
+                    <div className="menu-list">
+                      <button type="button" onClick={handleLogout} className="menu-item">
+                        <span>{copy.logout}</span>
+                      </button>
+                    </div>
+                  </div>
+                </details>
               ) : (
                 <button
                   type="button"
@@ -359,6 +458,25 @@ export function ChatShell() {
               )}
             </div>
           </div>
+
+          {isAuthenticated && quota ? (
+            <div className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--surface-soft)] px-3 py-2">
+              <div className="mb-1 flex items-center justify-between text-xs text-[var(--muted)]">
+                <span>{copy.credits}</span>
+                <span>
+                  {quota.enabled
+                    ? `${quota.remaining}/${quota.limit} ${copy.creditsRemaining}`
+                    : copy.creditsUnlimited}
+                </span>
+              </div>
+              <div className="quota-track">
+                <div
+                  className={quotaBarClass(quotaPercent)}
+                  style={{ width: `${quota.enabled ? quotaPercent : 15}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
 
           <div className="mt-4 flex flex-wrap gap-2">
             {copy.examples.map((example) => (
@@ -444,8 +562,14 @@ export function ChatShell() {
               className="w-full rounded-xl border border-[var(--line)] bg-[var(--panel)] px-4 py-2.5 text-sm text-[var(--text)] outline-none ring-[var(--accent)] focus:ring sm:text-base"
             />
             <div className="flex gap-2">
-              <button type="submit" disabled={!canSend} className="action-btn-primary">
-                {loading ? copy.sending : copy.send}
+              <button
+                type="submit"
+                disabled={!canSend}
+                className="action-btn-primary action-btn-icon"
+                aria-label={loading ? copy.sending : copy.send}
+                title={loading ? copy.sending : copy.send}
+              >
+                <span aria-hidden>{loading ? "…" : UI_ICONS.send}</span>
               </button>
               <button type="button" onClick={clearChat} className="action-btn-secondary">
                 {copy.clear}
