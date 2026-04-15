@@ -29,6 +29,7 @@ const UI_ICONS = {
   flagIt: "\uD83C\uDDEE\uD83C\uDDF9",
   flagEn: "\uD83C\uDDEC\uD83C\uDDE7",
 } as const;
+const PENDING_QUESTION_KEY = "iuss-insight:pending-question";
 
 const I18N: Record<
   UiLanguage,
@@ -186,6 +187,14 @@ export function ChatShell() {
     messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
   }, [messages, loading]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const pending = window.localStorage.getItem(PENDING_QUESTION_KEY);
+    if (!pending) return;
+    setQuestion((current) => (current.trim().length > 0 ? current : pending));
+    window.localStorage.removeItem(PENDING_QUESTION_KEY);
+  }, []);
+
   const copy = I18N[language];
   const isAuthenticated = status === "authenticated";
   const canSend = useMemo(() => question.trim().length > 0 && !loading, [question, loading]);
@@ -204,8 +213,12 @@ export function ChatShell() {
     event?.preventDefault();
     const trimmed = question.trim();
     if (!trimmed || loading) return;
+    if (status === "loading") return;
     if (!isAuthenticated) {
       setError(copy.authRequired);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(PENDING_QUESTION_KEY, trimmed);
+      }
       await signIn("google", { callbackUrl: "/" });
       return;
     }

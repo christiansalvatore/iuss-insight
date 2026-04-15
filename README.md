@@ -44,6 +44,9 @@ Compila i valori:
 - `NEXTAUTH_SECRET` (stringa casuale lunga)
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
+- `WEEKLY_QUESTION_LIMIT` (numero massimo domande per utente a settimana, es. `100`; `0` o vuoto disabilita limite)
+- `UPSTASH_REDIS_REST_URL` (obbligatoria se `WEEKLY_QUESTION_LIMIT > 0`)
+- `UPSTASH_REDIS_REST_TOKEN` (obbligatoria se `WEEKLY_QUESTION_LIMIT > 0`)
 - opzionali: `GEMINI_CHAT_MODEL`, `GEMINI_EMBED_MODEL`
 
 ### Login Google (solo Gmail)
@@ -134,6 +137,18 @@ Messaggio di rifiuto fuori scope:
 1. Project Settings -> Environment Variables.
 2. Inserisci le stesse variabili.
 3. Ridistribuisci dopo cambi chiavi.
+
+### Quota settimanale domande
+Per limitare le domande per utente autenticato:
+1. Crea un database Upstash Redis (piano free va bene per iniziare).
+2. Copia `UPSTASH_REDIS_REST_URL` e `UPSTASH_REDIS_REST_TOKEN`.
+3. Imposta `WEEKLY_QUESTION_LIMIT` (es. `100`).
+4. Deploy/redeploy.
+
+Comportamento:
+- contatore per utente (`email`) e settimana ISO
+- reset automatico all'inizio della settimana successiva
+- superato il limite l'API risponde `429` con messaggio chiaro
 
 ### Verifica anti-leak prima del push
 ```bash

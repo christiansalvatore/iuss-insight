@@ -1,7 +1,6 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 
-import { getAuthOptions } from "../../../lib/auth";
 import { generateGroundedAnswer } from "../../../lib/gemini";
 import {
   detectPromptInjection,
@@ -12,6 +11,7 @@ import {
 import { isAllowedChatModel, type ChatModelId } from "../../../lib/chat-models";
 import { searchIussDomainWeb, shouldUseLiveWebSearch } from "../../../lib/live-web-search";
 import { retrieveRelevantChunks } from "../../../lib/retrieval";
+import { getWeeklyQuestionLimit, registerQuestionUsage } from "../../../lib/weekly-quota";
 import {
   INJECTION_REFUSAL_MESSAGE,
   INSUFFICIENT_INFO_MESSAGE,
@@ -318,6 +318,7 @@ function getMessages(language: UiLanguage) {
       insufficient:
         "I do not have enough information in the available sources to answer reliably.",
       authRequired: "Please sign in with a Gmail account to use this chat.",
+      quotaExceeded: "Weekly question limit reached. Please try again next week.",
     };
   }
 
@@ -328,14 +329,18 @@ function getMessages(language: UiLanguage) {
     injection: INJECTION_REFUSAL_MESSAGE,
     insufficient: INSUFFICIENT_INFO_MESSAGE,
     authRequired: "Accedi con un account Gmail per usare questa chat.",
+    quotaExceeded: "Hai raggiunto il limite settimanale di domande. Riprova la prossima settimana.",
   };
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(getAuthOptions());
-    const sessionEmail = session?.user?.email?.toLowerCase();
-    if (!session || !sessionEmail || !sessionEmail.endsWith("@gmail.com")) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+    const sessionEmail = typeof token?.email === "string" ? token.email.toLowerCase() : "";
+    if (!sessionEmail || !sessionEmail.endsWith("@gmail.com")) {
       return NextResponse.json({ error: getMessages("it").authRequired }, { status: 401 });
     }
 
@@ -395,6 +400,22 @@ export async function POST(request: Request) {
         confidence: "low",
       };
       return NextResponse.json(response);
+    }
+
+    const weeklyLimit = getWeeklyQuestionLimit();
+    if (weeklyLimit > 0) {
+      const quota = await registerQuestionUsage(sessionEmail, weeklyLimit);
+      if (!quota.allowed) {
+        return NextResponse.json(
+          {
+            error: messages.quotaExceeded,
+            limit: quota.limit,
+            used: quota.current,
+            week: quota.weekKey,
+          },
+          { status: 429 },
+        );
+      }
     }
 
     const recentUserContext = history
