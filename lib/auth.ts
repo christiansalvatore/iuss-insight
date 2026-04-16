@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import { registerUserAccess } from "./access-log";
 import { isAllowedInstitutionEmail } from "./auth-policy";
 
 function requiredEnv(name: string): string {
@@ -25,7 +26,16 @@ export function getAuthOptions(): NextAuthOptions {
       async signIn({ account, profile }) {
         if (account?.provider !== "google") return false;
         const email = profile?.email?.toLowerCase();
-        return isAllowedInstitutionEmail(email);
+        const allowed = isAllowedInstitutionEmail(email);
+        if (!allowed || !email) return false;
+
+        try {
+          await registerUserAccess(email);
+        } catch {
+          // Access logging is non-blocking for user sign-in.
+        }
+
+        return true;
       },
     },
     pages: {

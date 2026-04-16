@@ -7,18 +7,48 @@ const INDEX_PATH = path.join(process.cwd(), "data", "index", "iuss-index.json");
 
 let cache: IndexFile | null = null;
 
-export async function loadIndex(): Promise<IndexFile> {
-  if (cache) return cache;
-
-  const raw = await fs.readFile(INDEX_PATH, "utf-8");
-  const parsed = JSON.parse(raw) as IndexFile;
-
+function assertValidIndex(parsed: IndexFile): IndexFile {
   if (!Array.isArray(parsed.chunks)) {
     throw new Error("Indice non valido: formato chunks mancante.");
   }
-
-  cache = parsed;
   return parsed;
+}
+
+async function loadIndexFromBlob(): Promise<IndexFile> {
+  const blobUrl = process.env.INDEX_BLOB_URL?.trim();
+  if (!blobUrl) {
+    throw new Error(
+      "Indice non trovato in locale e INDEX_BLOB_URL non configurata. Carica l'indice su Vercel Blob.",
+    );
+  }
+
+  const response = await fetch(blobUrl, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Errore nel download indice da Blob: HTTP ${response.status}`);
+  }
+
+  const parsed = (await response.json()) as IndexFile;
+  return assertValidIndex(parsed);
+}
+
+export async function loadIndex(): Promise<IndexFile> {
+  if (cache) return cache;
+
+  try {
+    const raw = await fs.readFile(INDEX_PATH, "utf-8");
+    const parsed = JSON.parse(raw) as IndexFile;
+    cache = assertValidIndex(parsed);
+    return cache;
+  } catch (error) {
+    const isFileMissing =
+      error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT";
+    if (!isFileMissing) {
+      throw error;
+    }
+  }
+
+  cache = await loadIndexFromBlob();
+  return cache;
 }
 
 export function clearIndexCache() {

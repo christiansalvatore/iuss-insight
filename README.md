@@ -44,13 +44,15 @@ Compila i valori:
 - `NEXTAUTH_SECRET` (stringa casuale lunga)
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
+- `BLOB_READ_WRITE_TOKEN` (per upload indice da locale a Vercel Blob)
+- `INDEX_BLOB_URL` (URL pubblico dell'indice su Vercel Blob; usato in produzione quando il file locale non e presente)
 - `WEEKLY_QUESTION_LIMIT` (numero massimo domande per utente a settimana, es. `100`; `0` o vuoto disabilita limite)
 - `UPSTASH_REDIS_REST_URL` (obbligatoria se `WEEKLY_QUESTION_LIMIT > 0`)
 - `UPSTASH_REDIS_REST_TOKEN` (obbligatoria se `WEEKLY_QUESTION_LIMIT > 0`)
 - opzionali: `GEMINI_CHAT_MODEL`, `GEMINI_EMBED_MODEL`
 
-### Login Google (solo Gmail)
-L'app usa autenticazione Google con `next-auth` e accetta solo account `@gmail.com`.
+### Login Google (solo dominio IUSS)
+L'app usa autenticazione Google con `next-auth` e accetta solo account `@iusspavia.it`.
 
 Configura OAuth su Google Cloud:
 1. Crea credenziali OAuth 2.0 (Web application).
@@ -93,6 +95,20 @@ Esegui di nuovo ingestione quando:
 - cambiano pagine IUSS rilevanti
 - aggiorni allowlist
 
+## Upload indice su Vercel Blob (consigliato per produzione)
+Se `data/index/iuss-index.json` e troppo grande per GitHub:
+1. Genera l'indice in locale con `npm run ingest`
+2. Caricalo su Blob:
+```bash
+npm run upload:index
+```
+3. Prendi l'URL stampato e impostalo in Vercel come `INDEX_BLOB_URL`
+4. Deploy/redeploy
+
+Fallback runtime:
+- in locale l'app legge `data/index/iuss-index.json`
+- in produzione, se il file locale non c'e, scarica l'indice da `INDEX_BLOB_URL`
+
 ## Avvio locale
 ```bash
 npm run dev
@@ -103,7 +119,7 @@ Apri `http://localhost:3000`.
 1. Pusha repository su GitHub.
 2. Importa progetto su Vercel.
 3. Imposta in Vercel le stesse env di `.env.local`.
-4. Prima del deploy di produzione, genera/aggiorna indice con `npm run ingest` e includi `data/index/iuss-index.json` nel repo.
+4. Prima del deploy di produzione, genera/aggiorna indice con `npm run ingest`, caricalo con `npm run upload:index` e aggiorna `INDEX_BLOB_URL`.
 5. Deploy.
 
 ## Comportamento chat
@@ -125,6 +141,8 @@ Messaggio di rifiuto fuori scope:
 - `NEXTAUTH_SECRET`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
+- `BLOB_READ_WRITE_TOKEN` (solo locale/script upload)
+- `INDEX_BLOB_URL` (produzione)
 - `GEMINI_CHAT_MODEL` (opzionale)
 - `GEMINI_EMBED_MODEL` (opzionale)
 
@@ -149,6 +167,16 @@ Comportamento:
 - contatore per utente (`email`) e settimana ISO
 - reset automatico all'inizio della settimana successiva
 - superato il limite l'API risponde `429` con messaggio chiaro
+
+### Log accessi utente
+Se Upstash Redis e configurato, ad ogni login riuscito vengono registrati:
+- email utente
+- numero totale accessi
+- primo accesso
+- ultimo accesso
+
+Endpoint disponibile per l'utente autenticato:
+- `GET /api/access`
 
 ### Verifica anti-leak prima del push
 ```bash
@@ -175,7 +203,7 @@ Se una chiave finisce per errore nel repository:
 - `data/index/` indice JSON generato
 
 ## Note operative
-- Login obbligatorio con Google (`@gmail.com`)
+- Login obbligatorio con Google (`@iusspavia.it`)
 - Nessuna area admin
 - Nessun CMS
 - Nessuna memoria utente
