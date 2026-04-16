@@ -61,11 +61,6 @@ const STOPWORDS = new Set([
   "the",
   "and",
 ]);
-const COURTESY_PATTERNS = [
-  /^(grazie|grazie mille|ti ringrazio|perfetto|ok|va bene|tutto chiaro|chiaro|bene)[!. ]*$/i,
-  /^(thanks|thank you|perfect|ok|got it|clear)[!. ]*$/i,
-  /^(ciao|salve|buongiorno|buonasera|hello|hi)[!. ]*$/i,
-];
 
 function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
@@ -92,11 +87,6 @@ function shouldUseHistoryForRetrieval(question: string): boolean {
 
   // Full, explicit questions should not inherit previous-topic bias.
   return false;
-}
-
-function isCourtesyMessage(question: string): boolean {
-  const normalized = question.trim();
-  return COURTESY_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
 function computeConfidence(
@@ -378,15 +368,6 @@ export async function POST(request: NextRequest) {
     if (detectPromptInjection(question)) {
       const response: ChatResponse = {
         answer: messages.injection,
-        sources: [],
-        confidence: "low",
-      };
-      return NextResponse.json(response);
-    }
-
-    if (isCourtesyMessage(question)) {
-      const response: ChatResponse = {
-        answer: language === "en" ? "You're welcome." : "Prego.",
         sources: [],
         confidence: "low",
       };
