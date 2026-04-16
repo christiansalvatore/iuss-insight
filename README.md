@@ -44,8 +44,8 @@ Compila i valori:
 - `NEXTAUTH_SECRET` (stringa casuale lunga)
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
-- `BLOB_READ_WRITE_TOKEN` (per upload indice da locale a Vercel Blob)
-- `INDEX_BLOB_URL` (URL pubblico dell'indice su Vercel Blob; usato in produzione quando il file locale non e presente)
+- `BLOB_READ_WRITE_TOKEN` (necessario per upload e lettura indice da store Blob privato)
+- `INDEX_BLOB_URL` (URL dell'indice su Vercel Blob; usato in produzione quando il file locale non e presente)
 - `WEEKLY_QUESTION_LIMIT` (numero massimo domande per utente a settimana, es. `100`; `0` o vuoto disabilita limite)
 - `UPSTASH_REDIS_REST_URL` (obbligatoria se `WEEKLY_QUESTION_LIMIT > 0`)
 - `UPSTASH_REDIS_REST_TOKEN` (obbligatoria se `WEEKLY_QUESTION_LIMIT > 0`)
@@ -107,7 +107,7 @@ npm run upload:index
 
 Fallback runtime:
 - in locale l'app legge `data/index/iuss-index.json`
-- in produzione, se il file locale non c'e, scarica l'indice da `INDEX_BLOB_URL`
+- in produzione, se il file locale non c'e, scarica l'indice da `INDEX_BLOB_URL` autenticandosi con `BLOB_READ_WRITE_TOKEN`
 
 ## Avvio locale
 ```bash
@@ -141,7 +141,7 @@ Messaggio di rifiuto fuori scope:
 - `NEXTAUTH_SECRET`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
-- `BLOB_READ_WRITE_TOKEN` (solo locale/script upload)
+- `BLOB_READ_WRITE_TOKEN` (locale e produzione, per store Blob privato)
 - `INDEX_BLOB_URL` (produzione)
 - `GEMINI_CHAT_MODEL` (opzionale)
 - `GEMINI_EMBED_MODEL` (opzionale)

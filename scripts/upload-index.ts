@@ -16,8 +16,9 @@ async function main() {
   }
 
   const body = await readFile(INDEX_PATH);
+  console.log("[upload-index] Avvio upload indice su Vercel Blob (store privato)...");
   const result = await put("iuss-index.json", body, {
-    access: "public",
+    access: "private",
     addRandomSuffix: false,
     token,
   });
@@ -31,4 +32,3 @@ main().catch((error) => {
   console.error(`[upload-index] ${message}`);
   process.exit(1);
 });
-

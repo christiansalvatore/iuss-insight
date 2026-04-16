@@ -16,13 +16,24 @@ function assertValidIndex(parsed: IndexFile): IndexFile {
 
 async function loadIndexFromBlob(): Promise<IndexFile> {
   const blobUrl = process.env.INDEX_BLOB_URL?.trim();
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN?.trim();
   if (!blobUrl) {
     throw new Error(
       "Indice non trovato in locale e INDEX_BLOB_URL non configurata. Carica l'indice su Vercel Blob.",
     );
   }
+  if (!blobToken) {
+    throw new Error(
+      "Indice su Blob configurato ma BLOB_READ_WRITE_TOKEN mancante. Necessario per leggere da store privato.",
+    );
+  }
 
-  const response = await fetch(blobUrl, { cache: "no-store" });
+  const response = await fetch(blobUrl, {
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${blobToken}`,
+    },
+  });
   if (!response.ok) {
     throw new Error(`Errore nel download indice da Blob: HTTP ${response.status}`);
   }
