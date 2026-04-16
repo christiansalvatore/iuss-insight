@@ -590,6 +590,12 @@ export function ChatShell() {
           </form>
           {error ? <p className="mt-2 text-sm text-[#b42318]">{error}</p> : null}
           <p className="mt-3 text-xs text-[var(--muted)] sm:text-sm">{copy.disclaimer}</p>
+          <p className="mt-2 text-[11px] text-[var(--muted)]">
+            Addestrato su dati e regolamenti IUSS | Powered by Gemini | Ailice Labs{" "}
+            <a href="https://www.ailice.ai" target="_blank" rel="noopener noreferrer" className="underline">
+              www.ailice.ai
+            </a>
+          </p>
         </footer>
       </section>
     </main>
